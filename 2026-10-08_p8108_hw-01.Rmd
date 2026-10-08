@@ -1,0 +1,191 @@
+---
+title: "2026-10-08_p8108_hw-01"
+author: "Chris"
+date: "2026-10-08"
+output: 
+  html_document:
+    toc: TRUE
+    toc_float: TRUE
+    number_sections: TRUE
+    theme: cosmo
+    css: style.css
+---
+
+
+# Problem 1
+
+## question a
+
+For both endpoints, the time origin is the date of bone marrow transplantation, and time is measured in months.
+
+For the relapse endpoint, the event is the first relapse after transplantation. Set $\delta_{R} = 1$ if relapse is observed and $\delta_{R} = 0$ if a patient doesn't  relapse in the end. The observed time is the time to relapse or, for a censored patient, the time to the last follow-up.  
+
+For the death endpoint, the event is death after transplantation. Set $\delta_{D} = 1$ if death is observed and $\delta_{D} = 0$ if a patient is alive. The observed time is the time to death or, for a censored patient, the time to the last follow-up.  
+
+Patient 4 relapsed at month 20, so the relapse observation is $(t_R, \delta_{R}) = (20, 1)$, who was still alive at the end of month 33, meaning the death observation should be $(33, 0)$.  
+
+
+## question b
+
+Let $t_i$ be the observed time and $\delta_i$ indicate whether the event was observed. An observed event contributes $f(t_i)$ to the likelihood, while a right-censored observation contributes $S(t_i)$. For the exponential model,
+
+$$
+f(t)=\lambda e^{-\lambda t},
+\qquad
+S(t)=e^{-\lambda t}.
+$$
+
+Under independent patients and independent censoring, the event-time likelihood is
+
+$$
+\begin{aligned}
+L(\lambda)
+&=\prod_{i=1}^{n}
+f(t_i)^{\delta_i}S(t_i)^{1-\delta_i}\\
+&=\prod_{i=1}^{n}
+(\lambda e^{-\lambda t_i})^{\delta_i}
+(e^{-\lambda t_i})^{1-\delta_i}\\
+&=\lambda^d\exp\left(-\lambda\sum_{i=1}^{n}t_i\right),
+\end{aligned}
+$$
+
+where $d=\sum_{i=1}^{n}\delta_i$ is the number of observed events. Factors from the censoring distribution that do not depend on $\lambda$ are omitted.
+
+The log-likelihood and its derivative are
+
+$$
+\ell(\lambda)
+=d\log\lambda-\lambda\sum_{i=1}^{n}t_i,
+\qquad
+\ell'(\lambda)
+=\frac{d}{\lambda}-\sum_{i=1}^{n}t_i.
+$$
+
+Setting the derivative to zero gives
+
+$$
+\widehat{\lambda}
+=\frac{d}{\sum_{i=1}^{n}t_i}.
+$$
+
+Since $\ell''(\lambda)=-d/\lambda^2<0$, this estimate maximizes the likelihood.
+
+For relapse, there are 6 observed events and 186 patient-months of observation:
+
+$$
+\sum_{i=1}^{10}t_{Ri}
+=5+8+12+20+32+27+16+17+19+30=186.
+$$
+
+Thus,
+
+$$
+\widehat{\lambda}_R
+=\frac{6}{186}
+=0.03226\ \text{month}^{-1}.
+$$
+
+For death, there are 3 observed events and 223 patient-months of observation:
+
+$$
+\sum_{i=1}^{10}t_{Di}
+=8+12+15+33+45+28+16+17+19+30=223.
+$$
+
+Thus,
+
+$$
+\widehat{\lambda}_D
+=\frac{3}{223}
+=0.01345\ \text{month}^{-1}.
+$$
+
+The estimated constant relapse hazard is 0.03226 per month among patients who have not yet relapsed. The estimated constant death hazard is 0.01345 per month among patients who are still alive. For a short interval of length $\Delta t$ months, the conditional probability of an event is approximately $\lambda\Delta t$.
+
+
+## question c
+
+For an exponential model, the fitted mean, median, survival probability, and event probability are
+
+$$
+\widehat{E(T)}=\frac{1}{\widehat{\lambda}},
+\qquad
+\widehat{m}=\frac{\log 2}{\widehat{\lambda}},
+$$
+
+$$
+\widehat{S}(t)=e^{-\widehat{\lambda}t},
+\qquad
+\widehat{P}(T\leq t)=1-e^{-\widehat{\lambda}t}.
+$$
+
+Using $\widehat{\lambda}_R=6/186$ for relapse and
+$\widehat{\lambda}_D=3/223$ for death gives the following results.
+Mean and median times are measured in months.
+
+| Endpoint | Mean | Median | $S(12)$ | $S(24)$ | $P(T\leq 12)$ |
+|:---------|-----:|-------:|--------:|--------:|---------------:|
+| Relapse  | 31.00 | 21.49 | 0.6790 | 0.4611 | 0.3210 |
+| Death    | 74.33 | 51.52 | 0.8509 | 0.7241 | 0.1491 |
+
+Under the fitted exponential models, the probability of remaining
+relapse free at 12 months after transplantation is approximately
+67.9%, and the probability of being alive at 12 months is approximately
+85.1%. Patients who have relapsed but remain alive are still counted
+as survivors for the death endpoint.
+
+
+## question d
+
+Let $T_R$ be the time to relapse. Using the fitted relapse rate
+$\widehat{\lambda}_R=6/186$, we obtain
+
+$$
+\begin{aligned}
+P(T_R>24\mid T_R>12)
+&=\frac{S_R(24)}{S_R(12)}\\
+&=\frac{e^{-24\widehat{\lambda}_R}}
+        {e^{-12\widehat{\lambda}_R}}\\
+&=e^{-12\widehat{\lambda}_R}\\
+&=e^{-12(6/186)}
+\approx 0.6790.
+\end{aligned}
+$$
+
+This equals the probability of remaining relapse free beyond month 12:
+
+$$
+P(T_R>12)=e^{-12(6/186)}\approx 0.6790.
+$$
+
+Thus, given no relapse through month 12, the fitted probability of
+remaining relapse free beyond month 24 is approximately 67.9%.
+This equality follows from the memoryless property of the exponential
+distribution.
+
+
+## question e
+
+The Kaplan–Meier median time to relapse is 27 months: the estimated
+survival probability decreases from 0.525 at month 20 to 0.350 at
+month 27.
+
+The Kaplan–Meier median time to death is not estimable because the
+survival curve remains above 0.5, with a final estimate of 0.7.
+
+The exponential model assumes a constant hazard and extrapolates
+beyond the observed follow-up. Its survival curve reaches 0.5 at
+$\log(2)/\widehat{\lambda}$, giving a finite median time to death
+of 51.52 months.
+
+
+
+
+
+
+
+
+
+
+
+
