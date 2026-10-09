@@ -2346,6 +2346,499 @@ which the estimated probability of having responded reaches or exceeds
 50%.</p>
 </div>
 </div>
+<div id="problem-3" class="section level1" number="3">
+<h1><span class="header-section-number">3</span> problem 3</h1>
+<div id="question-a-2" class="section level2" number="3.1">
+<h2><span class="header-section-number">3.1</span> question a</h2>
+<p>The Nelson–Aalen cumulative hazard and the Fleming–Harrington
+survival estimate are</p>
+<p><span class="math display">\[
+\widehat{H}_{NA}(t)
+=\sum_{t_j\leq t}\frac{d_j}{n_j},
+\qquad
+\widehat{S}_{FH}(t)
+=\exp\{-\widehat{H}_{NA}(t)\}.
+\]</span></p>
+<pre class="r"><code># Keep distinct event times
+na_table &lt;- subset(
+  km_table_prob2,
+  n_response &gt; 0,
+  select = c(time, n_risk, n_response, survival)
+)
+
+na_table$increment &lt;- with(na_table, n_response / n_risk)
+na_table$cum_hazard &lt;- cumsum(na_table$increment)
+na_table$fh_survival &lt;- exp(-na_table$cum_hazard)
+
+knitr::kable(
+  na_table[, c(
+    &quot;time&quot;, &quot;n_risk&quot;, &quot;n_response&quot;, &quot;increment&quot;, &quot;cum_hazard&quot;
+  )],
+  digits = 4,
+  col.names = c(
+    &quot;Day&quot;, &quot;At risk&quot;, &quot;Responses&quot;,
+    &quot;Hazard increment&quot;, &quot;Cumulative hazard&quot;
+  ),
+  row.names = FALSE
+)</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="right">Day</th>
+<th align="right">At risk</th>
+<th align="right">Responses</th>
+<th align="right">Hazard increment</th>
+<th align="right">Cumulative hazard</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right">2</td>
+<td align="right">17</td>
+<td align="right">1</td>
+<td align="right">0.0588</td>
+<td align="right">0.0588</td>
+</tr>
+<tr class="even">
+<td align="right">3</td>
+<td align="right">16</td>
+<td align="right">1</td>
+<td align="right">0.0625</td>
+<td align="right">0.1213</td>
+</tr>
+<tr class="odd">
+<td align="right">4</td>
+<td align="right">15</td>
+<td align="right">1</td>
+<td align="right">0.0667</td>
+<td align="right">0.1880</td>
+</tr>
+<tr class="even">
+<td align="right">12</td>
+<td align="right">14</td>
+<td align="right">1</td>
+<td align="right">0.0714</td>
+<td align="right">0.2594</td>
+</tr>
+<tr class="odd">
+<td align="right">22</td>
+<td align="right">13</td>
+<td align="right">1</td>
+<td align="right">0.0769</td>
+<td align="right">0.3363</td>
+</tr>
+<tr class="even">
+<td align="right">48</td>
+<td align="right">12</td>
+<td align="right">1</td>
+<td align="right">0.0833</td>
+<td align="right">0.4197</td>
+</tr>
+<tr class="odd">
+<td align="right">80</td>
+<td align="right">9</td>
+<td align="right">2</td>
+<td align="right">0.2222</td>
+<td align="right">0.6419</td>
+</tr>
+<tr class="even">
+<td align="right">90</td>
+<td align="right">7</td>
+<td align="right">1</td>
+<td align="right">0.1429</td>
+<td align="right">0.7848</td>
+</tr>
+<tr class="odd">
+<td align="right">160</td>
+<td align="right">5</td>
+<td align="right">1</td>
+<td align="right">0.2000</td>
+<td align="right">0.9848</td>
+</tr>
+<tr class="even">
+<td align="right">161</td>
+<td align="right">4</td>
+<td align="right">1</td>
+<td align="right">0.2500</td>
+<td align="right">1.2348</td>
+</tr>
+<tr class="odd">
+<td align="right">180</td>
+<td align="right">3</td>
+<td align="right">1</td>
+<td align="right">0.3333</td>
+<td align="right">1.5681</td>
+</tr>
+<tr class="even">
+<td align="right">238</td>
+<td align="right">1</td>
+<td align="right">1</td>
+<td align="right">1.0000</td>
+<td align="right">2.5681</td>
+</tr>
+</tbody>
+</table>
+<pre class="r"><code>comparison &lt;- subset(
+  na_table,
+  time %in% c(90, 180, 238),
+  select = c(time, survival, fh_survival)
+)
+
+knitr::kable(
+  comparison,
+  digits = 4,
+  col.names = c(&quot;Day&quot;, &quot;KM survival&quot;, &quot;FH survival&quot;),
+  row.names = FALSE
+)</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="right">Day</th>
+<th align="right">KM survival</th>
+<th align="right">FH survival</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right">90</td>
+<td align="right">0.4314</td>
+<td align="right">0.4562</td>
+</tr>
+<tr class="even">
+<td align="right">180</td>
+<td align="right">0.1725</td>
+<td align="right">0.2084</td>
+</tr>
+<tr class="odd">
+<td align="right">238</td>
+<td align="right">0.0000</td>
+<td align="right">0.0767</td>
+</tr>
+</tbody>
+</table>
+<p>At day 80, the two tied responses contribute <span class="math inline">\(\frac{2}{9}\)</span> to the cumulative hazard. At
+day 180, the risk set includes the patient censored that day, so the
+increment is <span class="math inline">\(\frac{1}{3}\)</span>.</p>
+<p>The FH estimates are higher than the KM estimates at all three
+comparison times. At day 238, KM falls to zero because the last patient
+responds. The FH estimate remains positive because the cumulative hazard
+is finite:</p>
+<p><span class="math display">\[
+\widehat{S}_{FH}(238)
+=e^{-2.5681}
+\approx 0.0767.
+\]</span></p>
+</div>
+<div id="question-b-2" class="section level2" number="3.2">
+<h2><span class="header-section-number">3.2</span> question b</h2>
+<pre class="r"><code>hazard_comparison &lt;- subset(
+  na_table,
+  time %in% c(90, 180, 238),
+  select = c(time, cum_hazard, survival)
+)
+
+hazard_comparison$neg_log_km &lt;- -log(hazard_comparison$survival)
+
+knitr::kable(
+  hazard_comparison[, c(&quot;time&quot;, &quot;cum_hazard&quot;, &quot;neg_log_km&quot;)],
+  digits = 4,
+  col.names = c(&quot;Day&quot;, &quot;Nelson-Aalen&quot;, &quot;Negative log KM&quot;),
+  row.names = FALSE
+)</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="right">Day</th>
+<th align="right">Nelson-Aalen</th>
+<th align="right">Negative log KM</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right">90</td>
+<td align="right">0.7848</td>
+<td align="right">0.8408</td>
+</tr>
+<tr class="even">
+<td align="right">180</td>
+<td align="right">1.5681</td>
+<td align="right">1.7571</td>
+</tr>
+<tr class="odd">
+<td align="right">238</td>
+<td align="right">2.5681</td>
+<td align="right">Inf</td>
+</tr>
+</tbody>
+</table>
+<p>The negative log KM estimate is larger than the Nelson–Aalen estimate
+at both days 90 and 180. At day 238, the KM estimate is zero, so <span class="math inline">\(-\log\widehat{S}_{KM}(238)=+\infty\)</span>, while
+the Nelson–Aalen estimate remains finite at 2.5681.</p>
+<p>The two estimators use different increments:</p>
+<p><span class="math display">\[
+\widehat{H}_{NA}(t)=\sum_{t_j\leq t}\frac{d_j}{n_j},
+\qquad
+-\log\widehat{S}_{KM}(t)
+=\sum_{t_j\leq t}-\log\left(1-\frac{d_j}{n_j}\right).
+\]</span></p>
+<p>Since <span class="math inline">\(-\log(1-x)\approx x\)</span> only
+when <span class="math inline">\(x\)</span> is small, the estimates can
+differ noticeably in this small sample, especially when few patients
+remain at risk.</p>
+</div>
+<div id="question-c-2" class="section level2" number="3.3">
+<h2><span class="header-section-number">3.3</span> question c</h2>
+<pre class="r"><code>lower &lt;- seq(0, 210, by = 30)
+upper &lt;- lower + 30
+
+life_table &lt;- data.frame(
+  interval = paste0(&quot;(&quot;, lower, &quot;, &quot;, upper, &quot;]&quot;),
+  midpoint = lower + 15,
+  n = sapply(lower, function(a) sum(df_prob2$time &gt; a)),
+  d = sapply(seq_along(lower), function(i) {
+    sum(df_prob2$time &gt; lower[i] &amp; df_prob2$time &lt;= upper[i] &amp;
+          df_prob2$status == 1)
+  }),
+  c = sapply(seq_along(lower), function(i) {
+    sum(df_prob2$time &gt; lower[i] &amp; df_prob2$time &lt;= upper[i] &amp;
+          df_prob2$status == 0)
+  })
+)
+
+life_table$n_eff &lt;- with(life_table, n - c / 2)
+life_table$q &lt;- with(life_table, d / n_eff)
+life_table$survival &lt;- cumprod(1 - life_table$q)
+
+life_table$hazard &lt;- with(
+  life_table,
+  d / (30 * (n - c / 2 - d / 2))
+)
+
+knitr::kable(
+  life_table,
+  digits = 4,
+  col.names = c(
+    &quot;Interval&quot;, &quot;Midpoint&quot;, &quot;Starting risk set&quot;,
+    &quot;Responses&quot;, &quot;Censored&quot;, &quot;Effective risk set&quot;,
+    &quot;Response probability&quot;, &quot;Endpoint survival&quot;, &quot;Hazard&quot;
+  ),
+  row.names = FALSE
+)</code></pre>
+<table>
+<colgroup>
+<col width="9%" />
+<col width="7%" />
+<col width="14%" />
+<col width="8%" />
+<col width="7%" />
+<col width="15%" />
+<col width="17%" />
+<col width="14%" />
+<col width="5%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Interval</th>
+<th align="right">Midpoint</th>
+<th align="right">Starting risk set</th>
+<th align="right">Responses</th>
+<th align="right">Censored</th>
+<th align="right">Effective risk set</th>
+<th align="right">Response probability</th>
+<th align="right">Endpoint survival</th>
+<th align="right">Hazard</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">(0, 30]</td>
+<td align="right">15</td>
+<td align="right">17</td>
+<td align="right">5</td>
+<td align="right">0</td>
+<td align="right">17.0</td>
+<td align="right">0.2941</td>
+<td align="right">0.7059</td>
+<td align="right">0.0115</td>
+</tr>
+<tr class="even">
+<td align="left">(30, 60]</td>
+<td align="right">45</td>
+<td align="right">12</td>
+<td align="right">1</td>
+<td align="right">2</td>
+<td align="right">11.0</td>
+<td align="right">0.0909</td>
+<td align="right">0.6417</td>
+<td align="right">0.0032</td>
+</tr>
+<tr class="odd">
+<td align="left">(60, 90]</td>
+<td align="right">75</td>
+<td align="right">9</td>
+<td align="right">3</td>
+<td align="right">0</td>
+<td align="right">9.0</td>
+<td align="right">0.3333</td>
+<td align="right">0.4278</td>
+<td align="right">0.0133</td>
+</tr>
+<tr class="even">
+<td align="left">(90, 120]</td>
+<td align="right">105</td>
+<td align="right">6</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">5.5</td>
+<td align="right">0.0000</td>
+<td align="right">0.4278</td>
+<td align="right">0.0000</td>
+</tr>
+<tr class="odd">
+<td align="left">(120, 150]</td>
+<td align="right">135</td>
+<td align="right">5</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">5.0</td>
+<td align="right">0.0000</td>
+<td align="right">0.4278</td>
+<td align="right">0.0000</td>
+</tr>
+<tr class="even">
+<td align="left">(150, 180]</td>
+<td align="right">165</td>
+<td align="right">5</td>
+<td align="right">3</td>
+<td align="right">1</td>
+<td align="right">4.5</td>
+<td align="right">0.6667</td>
+<td align="right">0.1426</td>
+<td align="right">0.0333</td>
+</tr>
+<tr class="odd">
+<td align="left">(180, 210]</td>
+<td align="right">195</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">1.0</td>
+<td align="right">0.0000</td>
+<td align="right">0.1426</td>
+<td align="right">0.0000</td>
+</tr>
+<tr class="even">
+<td align="left">(210, 240]</td>
+<td align="right">225</td>
+<td align="right">1</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="right">1.0</td>
+<td align="right">1.0000</td>
+<td align="right">0.0000</td>
+<td align="right">0.0667</td>
+</tr>
+</tbody>
+</table>
+<p>The grouped-data approximation assumes independent censoring that is
+uniformly distributed within each interval. Censored patients therefore
+contribute half an interval of follow-up on average.</p>
+<p>For <span class="math inline">\((150,180]\)</span>, there are 5
+patients at the start, 3 responses (at days 160, 161, and 180), and 1
+censoring (at day 180). The effective risk set and conditional response
+probability are</p>
+<p><span class="math display">\[
+n_{\mathrm{eff}}=5-\frac{1}{2}=4.5,
+\qquad
+\widehat{q}=\frac{3}{4.5}=\frac{2}{3}.
+\]</span></p>
+<p>Survival at day 150 is</p>
+<p><span class="math display">\[
+\widehat{S}(150)
+=\left(1-\frac{5}{17}\right)
+\left(1-\frac{1}{11}\right)
+\left(1-\frac{3}{9}\right)
+=\frac{80}{187}.
+\]</span></p>
+<p>Thus, survival at day 180 is</p>
+<p><span class="math display">\[
+\widehat{S}(180)
+=\frac{80}{187}\left(1-\frac{2}{3}\right)
+=\frac{80}{561}
+\approx 0.1426.
+\]</span></p>
+<p>The estimated hazard at the interval midpoint, day 165, is</p>
+<p><span class="math display">\[
+\widehat{h}(165)
+=\frac{3}{30\left(5-\frac{1}{2}-\frac{3}{2}\right)}
+=\frac{3}{90}
+=0.03333\ \text{day}^{-1}.
+\]</span></p>
+</div>
+<div id="question-d-2" class="section level2" number="3.4">
+<h2><span class="header-section-number">3.4</span> question d</h2>
+<pre class="r"><code>days &lt;- c(90, 180)
+
+comparison &lt;- data.frame(
+  day = days,
+  actuarial = life_table$survival[match(days, upper)],
+  km = km_table_prob2$survival[match(days, km_table_prob2$time)]
+)
+
+knitr::kable(
+  comparison,
+  digits = 4,
+  col.names = c(&quot;Day&quot;, &quot;Actuarial survival&quot;, &quot;KM survival&quot;),
+  row.names = FALSE
+)</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="right">Day</th>
+<th align="right">Actuarial survival</th>
+<th align="right">KM survival</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right">90</td>
+<td align="right">0.4278</td>
+<td align="right">0.4314</td>
+</tr>
+<tr class="even">
+<td align="right">180</td>
+<td align="right">0.1426</td>
+<td align="right">0.1725</td>
+</tr>
+</tbody>
+</table>
+<pre class="r"><code>plot(
+  life_table$midpoint,
+  life_table$hazard,
+  type = &quot;b&quot;,
+  pch = 19,
+  xlab = &quot;Interval midpoint (days)&quot;,
+  ylab = &quot;Estimated response hazard (per day)&quot;,
+  xaxt = &quot;n&quot;,
+  ylim = c(0, max(life_table$hazard) * 1.1)
+)
+
+axis(1, at = life_table$midpoint)</code></pre>
+<p><img role="img" aria-label src="data:image/png;base64,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" alt width="672" /></p>
+<p>The actuarial estimates at days 90 and 180 are 0.4278 and 0.1426,
+compared with KM estimates of 0.4314 and 0.1725.</p>
+<p>Grouping removes the exact ordering of responses and censoring. The
+actuarial method instead subtracts half the interval’s censoring count
+from the starting risk set, so its estimates differ from KM.</p>
+<p>The estimated hazards vary across intervals, so the plot does not
+clearly support a constant-hazard exponential model. However, this
+variation is based on only 17 patients. Late intervals have very small
+risk sets, and the final hazard estimate is based on one patient.
+Zero-response intervals also do not imply a true hazard of zero. These
+estimates are unstable, so the plot alone is not enough to rule out an
+exponential model.</p>
+</div>
+</div>
 
 
 

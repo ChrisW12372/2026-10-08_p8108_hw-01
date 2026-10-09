@@ -575,3 +575,258 @@ time at which the estimated probability of having responded
 reaches or exceeds 50%.
 
 
+# problem 3
+
+
+## question a
+
+The Nelson–Aalen cumulative hazard and the Fleming–Harrington survival estimate are
+
+$$
+\widehat{H}_{NA}(t)
+=\sum_{t_j\leq t}\frac{d_j}{n_j},
+\qquad
+\widehat{S}_{FH}(t)
+=\exp\{-\widehat{H}_{NA}(t)\}.
+$$
+
+
+```{r}
+# Keep distinct event times
+na_table <- subset(
+  km_table_prob2,
+  n_response > 0,
+  select = c(time, n_risk, n_response, survival)
+)
+
+na_table$increment <- with(na_table, n_response / n_risk)
+na_table$cum_hazard <- cumsum(na_table$increment)
+na_table$fh_survival <- exp(-na_table$cum_hazard)
+
+knitr::kable(
+  na_table[, c(
+    "time", "n_risk", "n_response", "increment", "cum_hazard"
+  )],
+  digits = 4,
+  col.names = c(
+    "Day", "At risk", "Responses",
+    "Hazard increment", "Cumulative hazard"
+  ),
+  row.names = FALSE
+)
+
+comparison <- subset(
+  na_table,
+  time %in% c(90, 180, 238),
+  select = c(time, survival, fh_survival)
+)
+
+knitr::kable(
+  comparison,
+  digits = 4,
+  col.names = c("Day", "KM survival", "FH survival"),
+  row.names = FALSE
+)
+```
+
+At day 80, the two tied responses contribute $\frac{2}{9}$ to the cumulative
+hazard. At day 180, the risk set includes the patient censored that
+day, so the increment is $\frac{1}{3}$.
+
+The FH estimates are higher than the KM estimates at all three
+comparison times. At day 238, KM falls to zero because the last
+patient responds. The FH estimate remains positive because the
+cumulative hazard is finite:
+
+$$
+\widehat{S}_{FH}(238)
+=e^{-2.5681}
+\approx 0.0767.
+$$
+
+
+
+## question b
+
+```{r}
+hazard_comparison <- subset(
+  na_table,
+  time %in% c(90, 180, 238),
+  select = c(time, cum_hazard, survival)
+)
+
+hazard_comparison$neg_log_km <- -log(hazard_comparison$survival)
+
+knitr::kable(
+  hazard_comparison[, c("time", "cum_hazard", "neg_log_km")],
+  digits = 4,
+  col.names = c("Day", "Nelson-Aalen", "Negative log KM"),
+  row.names = FALSE
+)
+```
+
+The negative log KM estimate is larger than the Nelson–Aalen
+estimate at both days 90 and 180. At day 238, the KM estimate is
+zero, so $-\log\widehat{S}_{KM}(238)=+\infty$, while the Nelson–Aalen
+estimate remains finite at 2.5681.
+
+The two estimators use different increments:
+
+$$
+\widehat{H}_{NA}(t)=\sum_{t_j\leq t}\frac{d_j}{n_j},
+\qquad
+-\log\widehat{S}_{KM}(t)
+=\sum_{t_j\leq t}-\log\left(1-\frac{d_j}{n_j}\right).
+$$
+
+Since $-\log(1-x)\approx x$ only when $x$ is small, the estimates
+can differ noticeably in this small sample, especially when few
+patients remain at risk.
+
+
+## question c
+
+```{r}
+lower <- seq(0, 210, by = 30)
+upper <- lower + 30
+
+life_table <- data.frame(
+  interval = paste0("(", lower, ", ", upper, "]"),
+  midpoint = lower + 15,
+  n = sapply(lower, function(a) sum(df_prob2$time > a)),
+  d = sapply(seq_along(lower), function(i) {
+    sum(df_prob2$time > lower[i] & df_prob2$time <= upper[i] &
+          df_prob2$status == 1)
+  }),
+  c = sapply(seq_along(lower), function(i) {
+    sum(df_prob2$time > lower[i] & df_prob2$time <= upper[i] &
+          df_prob2$status == 0)
+  })
+)
+
+life_table$n_eff <- with(life_table, n - c / 2)
+life_table$q <- with(life_table, d / n_eff)
+life_table$survival <- cumprod(1 - life_table$q)
+
+life_table$hazard <- with(
+  life_table,
+  d / (30 * (n - c / 2 - d / 2))
+)
+
+knitr::kable(
+  life_table,
+  digits = 4,
+  col.names = c(
+    "Interval", "Midpoint", "Starting risk set",
+    "Responses", "Censored", "Effective risk set",
+    "Response probability", "Endpoint survival", "Hazard"
+  ),
+  row.names = FALSE
+)
+```
+
+
+The grouped-data approximation assumes independent censoring that
+is uniformly distributed within each interval. Censored patients
+therefore contribute half an interval of follow-up on average.
+
+For $(150,180]$, there are 5 patients at the start, 3 responses
+(at days 160, 161, and 180), and 1 censoring (at day 180).
+The effective risk set and conditional response probability are
+
+$$
+n_{\mathrm{eff}}=5-\frac{1}{2}=4.5,
+\qquad
+\widehat{q}=\frac{3}{4.5}=\frac{2}{3}.
+$$
+
+Survival at day 150 is
+
+$$
+\widehat{S}(150)
+=\left(1-\frac{5}{17}\right)
+ \left(1-\frac{1}{11}\right)
+ \left(1-\frac{3}{9}\right)
+=\frac{80}{187}.
+$$
+
+Thus, survival at day 180 is
+
+$$
+\widehat{S}(180)
+=\frac{80}{187}\left(1-\frac{2}{3}\right)
+=\frac{80}{561}
+\approx 0.1426.
+$$
+
+The estimated hazard at the interval midpoint, day 165, is
+
+$$
+\widehat{h}(165)
+=\frac{3}{30\left(5-\frac{1}{2}-\frac{3}{2}\right)}
+=\frac{3}{90}
+=0.03333\ \text{day}^{-1}.
+$$
+
+
+## question d
+
+```{r}
+days <- c(90, 180)
+
+comparison <- data.frame(
+  day = days,
+  actuarial = life_table$survival[match(days, upper)],
+  km = km_table_prob2$survival[match(days, km_table_prob2$time)]
+)
+
+knitr::kable(
+  comparison,
+  digits = 4,
+  col.names = c("Day", "Actuarial survival", "KM survival"),
+  row.names = FALSE
+)
+```
+
+
+```{r, fig.width=7, fig.height=4.5}
+plot(
+  life_table$midpoint,
+  life_table$hazard,
+  type = "b",
+  pch = 19,
+  xlab = "Interval midpoint (days)",
+  ylab = "Estimated response hazard (per day)",
+  xaxt = "n",
+  ylim = c(0, max(life_table$hazard) * 1.1)
+)
+
+axis(1, at = life_table$midpoint)
+```
+
+The actuarial estimates at days 90 and 180 are 0.4278 and 0.1426,
+compared with KM estimates of 0.4314 and 0.1725.
+
+Grouping removes the exact ordering of responses and censoring.
+The actuarial method instead subtracts half the interval's censoring
+count from the starting risk set, so its estimates differ from KM.
+
+The estimated hazards vary across intervals, so the plot does not
+clearly support a constant-hazard exponential model. However, this
+variation is based on only 17 patients. Late intervals have very
+small risk sets, and the final hazard estimate is based on one
+patient. Zero-response intervals also do not imply a true hazard
+of zero. These estimates are unstable, so the plot alone is not
+enough to rule out an exponential model.
+
+
+
+
+
+
+
+
+
+
+
+
