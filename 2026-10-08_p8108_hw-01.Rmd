@@ -11,6 +11,13 @@ output:
     css: style.css
 ---
 
+https://github.com/ChrisW12372/2026-10-08_p8108_hw-01.git
+
+```{r  warning=FALSE, message=FALSE}
+library(tidyverse)
+library(survival)
+```
+
 
 # Problem 1
 
@@ -119,14 +126,29 @@ $$
 \widehat{P}(T\leq t)=1-e^{-\widehat{\lambda}t}.
 $$
 
-Using $\widehat{\lambda}_R=6/186$ for relapse and
-$\widehat{\lambda}_D=3/223$ for death gives the following results.
-Mean and median times are measured in months.
 
-| Endpoint | Mean | Median | $S(12)$ | $S(24)$ | $P(T\leq 12)$ |
-|:---------|-----:|-------:|--------:|--------:|---------------:|
-| Relapse  | 31.00 | 21.49 | 0.6790 | 0.4611 | 0.3210 |
-| Death    | 74.33 | 51.52 | 0.8509 | 0.7241 | 0.1491 |
+```{r}
+lambda <- c(Relapse = 6 / 186, Death = 3 / 223)
+
+results_prob1 <- tibble(
+  Endpoint = names(lambda),
+  Mean = 1 / lambda,
+  Median = log(2) / lambda,
+  S12 = exp(-12 * lambda),
+  S24 = exp(-24 * lambda),
+  Event12 = 1 - exp(-12 * lambda)
+)
+
+knitr::kable(
+  results_prob1,
+  digits = c(0, 2, 2, 4, 4, 4),
+  col.names = c(
+    "Endpoint", "Mean (months)", "Median (months)",
+    "S(12)", "S(24)", "P(T ≤ 12)"
+  ),
+  row.names = FALSE
+)
+```
 
 Under the fitted exponential models, the probability of remaining
 relapse free at 12 months after transplantation is approximately
@@ -179,13 +201,377 @@ $\log(2)/\widehat{\lambda}$, giving a finite median time to death
 of 51.52 months.
 
 
+# Problem 2
+
+## question a
+
+Let $T$ be the time in days from randomization to the first documented
+treatment response, defined as a CD4 count above 300 cells/mm$^3$.
+
+$$
+S(t)=P(T>t)
+$$
+
+is the probability that a patient has not yet responded by day $t$.
+
+$$
+F(t)=P(T\leq t)=1-S(t)
+$$
+
+is the probability that a patient has responded by day $t$.
+
+A larger $S(t)$ indicates slower treatment response because more
+patients remain without a response. Here, "survival" means remaining
+free of the response event, rather than remaining alive.
+
+## question b
+
+```{r}
+df_prob2 <- tibble(
+  time = c(22, 2, 48, 80, 160, 238, 56, 94, 51,
+           12, 161, 80, 180, 4, 90, 180, 3),
+  status = c(1, 1, 1, 1, 1, 1, 0, 0, 0,
+             1, 1, 1, 1, 1, 1, 0, 1)
+)
+
+# status: 1 = response, 0 = right censoring
+times <- sort(unique(df_prob2$time))
+
+km_table_prob2 <- tibble(
+  time = times,
+  n_risk = sapply(times, function(t) sum(df_prob2$time >= t)),
+  n_response = sapply(times, function(t) {
+    sum(df_prob2$time == t & df_prob2$status == 1)
+  }),
+  n_censored = sapply(times, function(t) {
+    sum(df_prob2$time == t & df_prob2$status == 0)
+  })
+)
+
+km_table_prob2$factor <- with(km_table_prob2, 1 - n_response / n_risk)
+km_table_prob2$survival <- cumprod(km_table_prob2$factor)
+
+knitr::kable(
+  km_table_prob2,
+  digits = 4,
+  col.names = c(
+    "Time (days)", "At risk", "Responses", "Censored",
+    "Conditional survival factor", "KM survival"
+  ),
+  row.names = FALSE
+)
+```
+
+
+Starting with $\widehat{S}(0)=1$, the hand calculations through day 22 are
+
+$$
+\begin{aligned}
+\widehat{S}(2)
+&=\frac{16}{17}=0.9412,\\
+\widehat{S}(3)
+&=\frac{16}{17}\times\frac{15}{16}
+=\frac{15}{17}=0.8824,\\
+\widehat{S}(4)
+&=\frac{15}{17}\times\frac{14}{15}
+=\frac{14}{17}=0.8235,\\
+\widehat{S}(12)
+&=\frac{14}{17}\times\frac{13}{14}
+=\frac{13}{17}=0.7647,\\
+\widehat{S}(22)
+&=\frac{13}{17}\times\frac{12}{13}
+=\frac{12}{17}=0.7059.
+\end{aligned}
+$$
+
+At day 80, there are 9 patients at risk and 2 responses:
+
+$$
+1-\frac{d_{80}}{n_{80}}
+=1-\frac{2}{9}=\frac{7}{9},
+\qquad
+\widehat{S}(80)
+=\frac{11}{17}\times\frac{7}{9}
+=0.5033.
+$$
+
+At day 180, there are 3 patients at risk and 1 response. The patient
+censored that day is included in the risk set:
+
+$$
+1-\frac{d_{180}}{n_{180}}
+=1-\frac{1}{3}=\frac{2}{3},
+\qquad
+\widehat{S}(180)
+=\frac{22}{85}\times\frac{2}{3}
+=0.1725.
+$$
+
+The estimated probabilities of not yet responding by days 22, 80, and 180 are 70.6%, 50.3%, and 17.3%, respectively. Censoring alone does not lower the curve because no response is observed; it only reduces later risk sets. At day 238, the last remaining patient responds, so the KM estimate falls to zero.
+
+
+## question c
+
+```{r}
+km_fit <- survfit(
+  Surv(time, status) ~ 1,
+  data = df_prob2,
+  conf.int = 0.95,
+  conf.type = "log-log"
+)
+
+# Compare the software estimates with the calculation table
+km_summary <- summary(km_fit, censored = TRUE)
+
+comparison <- data.frame(
+  time = km_summary$time,
+  manual = km_table_prob2$survival[
+    match(km_summary$time, km_table_prob2$time)
+  ],
+  software = km_summary$surv
+)
+
+stopifnot(
+  isTRUE(all.equal(
+    comparison$manual,
+    comparison$software,
+    tolerance = 1e-10
+  ))
+)
+
+knitr::kable(
+  comparison,
+  digits = 4,
+  col.names = c("Time (days)", "Calculated KM", "Software KM"),
+  row.names = FALSE
+)
+```
+
+```{r, fig.width=7, fig.height=5}
+plot(
+  km_fit,
+  conf.int = TRUE,
+  mark.time = TRUE,
+  xlab = "Time (days)",
+  ylab = "Probability of not yet responding",
+  ylim = c(0, 1),
+  col = "black",
+  lwd = 2
+)
+
+legend(
+  "topright",
+  legend = c("KM estimate", "Pointwise 95% CI", "Censored"),
+  lty = c(1, 3, NA),
+  pch = c(NA, NA, 3),
+  col = "black",
+  bty = "n"
+)
+```
+
+The software KM estimates agree with the calculation table.
+
+Pointwise 95% coverage means that, at a fixed time $t$, intervals
+constructed in this way would contain the true $S(t)$ in approximately
+95% of repeated samples. It does not mean that the intervals cover
+the entire survival curve simultaneously with 95% probability.
+
+
+## question d
+
+
+```{r}
+# Greenwood calculations through day 90
+gw <- subset(km_table_prob2, time <= 90)
+
+gw$greenwood_sum <- cumsum(
+  with(gw, n_response / (n_risk * (n_risk - n_response)))
+)
+
+gw$se <- gw$survival * sqrt(gw$greenwood_sum)
+
+out <- subset(gw, time %in% c(2, 90))
+
+# Raw linear intervals: no clipping
+out$linear_lower <- out$survival - 1.96 * out$se
+out$linear_upper <- out$survival + 1.96 * out$se
+
+# Log-log intervals from the software fit in part (c)
+ci <- summary(km_fit, times = out$time)
+
+results <- data.frame(
+  time = out$time,
+  survival = out$survival,
+  se = out$se,
+  linear_lower = out$linear_lower,
+  linear_upper = out$linear_upper,
+  loglog_lower = ci$lower,
+  loglog_upper = ci$upper
+)
+
+knitr::kable(
+  results,
+  digits = 4,
+  col.names = c(
+    "Day", "KM survival", "SE",
+    "Linear lower", "Linear upper",
+    "Log-log lower", "Log-log upper"
+  ),
+  row.names = FALSE
+)
+```
+
+
+Greenwood's formula gives
+
+$$
+\operatorname{SE}\{\widehat{S}(t)\}
+=\widehat{S}(t)
+\sqrt{\sum_{t_j\leq t}\frac{d_j}{n_j(n_j-d_j)}}.
+$$
+
+At day 2,
+
+$$
+\operatorname{SE}\{\widehat{S}(2)\}
+=\frac{16}{17}\sqrt{\frac{1}{17(16)}}
+=0.05707.
+$$
+
+At day 90, the Greenwood sum is
+
+$$
+\begin{aligned}
+G(90)
+&=\frac{1}{17(16)}
++\frac{1}{16(15)}
++\frac{1}{15(14)}
++\frac{1}{14(13)}\\
+&\quad+\frac{1}{13(12)}
++\frac{1}{12(11)}
++\frac{2}{9(7)}
++\frac{1}{7(6)}\\
+&=0.087641.
+\end{aligned}
+$$
+
+Thus,
+
+$$
+\operatorname{SE}\{\widehat{S}(90)\}
+=\frac{22}{51}\sqrt{0.087641}
+=0.12770.
+$$
+
+The untruncated linear 95% confidence intervals are
+
+$$
+\begin{aligned}
+\text{Day 2:}\quad
+&0.94118\pm1.96(0.05707)
+=(0.8293,\ 1.0530),\\
+\text{Day 90:}\quad
+&0.43137\pm1.96(0.12770)
+=(0.1811,\ 0.6817).
+\end{aligned}
+$$
+
+The day-2 linear upper bound exceeds 1. The log-log transformation
+keeps confidence limits within $[0,1]$ and allows asymmetric intervals.
+The linear intervals above were calculated directly without clipping;
+`survfit(conf.type = "plain")` clips its bounds to $[0,1]$.
+
+
+## question e
+
+```{r}
+# Survival immediately before each observed time
+km_table_prob2$survival_before <- c(
+  1, head(km_table_prob2$survival, -1)
+)
+
+probs <- c(0.25, 0.50, 0.75)
+
+quantile_table <- do.call(rbind, lapply(probs, function(p) {
+  i <- which(
+    km_table_prob2$n_response > 0 &
+      km_table_prob2$survival <= 1 - p
+  )[1]
+
+  data.frame(
+    percentile = paste0(100 * p, "%"),
+    threshold = 1 - p,
+    time = km_table_prob2$time[i],
+    survival_before = km_table_prob2$survival_before[i],
+    survival_after = km_table_prob2$survival[i]
+  )
+}))
+
+knitr::kable(
+  quantile_table,
+  digits = 4,
+  col.names = c(
+    "Percentile", "Threshold", "Time (days)",
+    "Survival before", "Survival after"
+  ),
+  row.names = FALSE
+)
+```
 
 
 
+```{r, fig.width=7, fig.height=5}
+plot(
+  km_fit,
+  conf.int = TRUE,
+  mark.time = TRUE,
+  xlab = "Time (days)",
+  ylab = "Probability of not yet responding",
+  ylim = c(0, 1),
+  lwd = 2
+)
+
+points(
+  quantile_table$time,
+  quantile_table$survival_after,
+  pch = 19,
+  col = "red"
+)
+
+segments(
+  x0 = quantile_table$time, y0 = 0,
+  x1 = quantile_table$time,
+  y1 = quantile_table$survival_after,
+  lty = 2,
+  col = "red"
+)
+
+text(
+  quantile_table$time,
+  quantile_table$survival_after,
+  labels = paste0(
+    quantile_table$percentile, ": ",
+    quantile_table$time, " days"
+  ),
+  pos = 3,
+  cex = 0.8,
+  col = "red"
+)
+```
 
 
+The estimated $p$th quantile is
 
+$$
+\widehat{q}_p
+=\min\{t_j:\widehat{S}(t_j)\leq 1-p\},
+$$
 
+where $t_j$ ranges over event times. No interpolation is used.
 
+The estimated 25th, 50th, and 75th percentiles are 22, 90, and
+180 days, respectively. The median is 90 days: this is the first
+time at which the estimated probability of having responded
+reaches or exceeds 50%.
 
 
